@@ -25,7 +25,7 @@ class Canvas:
     def line(self, x1, y1, x2, y2, **kargs):
         slope = (y2-y1) / (x2-x1)
         for y in range(y1,y2):
-            x= int(slope * y)
+            x = int(slope * y)
             self.set_pixel(x,y, **kargs)
             
     def display(self):
@@ -38,6 +38,7 @@ class Shape:
     def __init__(self, x, y):
         self._x = x
         self._y = y
+        self.name=""
     
     def get_x(self):
         return self._x
@@ -105,10 +106,14 @@ class Rectangle(Shape):
     def paint(self, canvas, char='*'):
         # horizontal lines
         canvas.h_line(self._x, self._y, self.height, char=char)
-        canvas.h_line(self._x, self._y+self.width, self.height, char=char)
+        canvas.h_line(self._x+self.width, self._y, self.height, char=char)
+
         # vertical lines
         canvas.v_line(self._x, self._y, self.height, char=char) 
-        canvas.v_line(self._x+self.height, self._y, self.width, char=char)
+        canvas.v_line(self._x, self._y+self.height, self.width, char=char)
+
+    def __repr__(self):
+        return "Rectangle ("+repr(self._x)+","+repr(self._y)+","+repr(self.width)+","+repr(self.height)+") "
 
 
 # Circle Class
@@ -140,43 +145,66 @@ class Circle(Shape):
             if 0<=x<canvas.width and 0<=y<canvas.height:
                 canvas.set_pixel(y, x, char)
 
+    def __repr__(self):
+        return "Circle ("+repr(self._x)+","+repr(self._y)+","+repr(self.radius)+") "
+
 class Triangle(Shape):
-    def __init__(self, x, y, base, height):
+    def __init__(self, side1, side2, side3, x, y):
         super().__init__(x, y)
-        self.base = base
-        self.height = height
-        self.vertices = [(x, y), (x + base, y), (x + base / 2, y + height)]  # Simplified for equilateral triangles
+        self.__side1 = side1
+        self.__side2 = side2
+        self.__side3 = side3
+    
+    def get_sides(self):
+        return self.__side1, self.__side2, self.__side3
     
     def area(self):
-        return 0.5 * self.base * self.height
+        s = (self.__side1 + self.__side2 + self.__side3) / 2
+        return math.sqrt(s * (s - self.__side1) * (s - self.__side2) * (s - self.__side3))
     
     def perimeter(self):
-        return 3 * self.base  # Assuming an equilateral triangle for simplicity
-
-    def get_perimeter_points(self):
-        return self.vertices
+        return self.__side1 + self.__side2 + self.__side3
     
-    def is_inside(self, x_point, y_point):
-        # Vertices of the triangle
-        x1, y1 = self.vertices[0]
-        x2, y2 = self.vertices[1]
-        x3, y3 = self.vertices[2]
+    def get_perimeter_points(self):
+        points = []
         
-        # Area of the main triangle (ABC)
-        area_ABC = abs(x1*(y2 - y3) + x2*(y3 - y1) + x3*(y1 - y2)) / 2.0
+        for i in range(5):
+            x_point = self._x + (self.__side1 / 4) * i
+            y_point = self._y
+            points.append((x_point, y_point))
         
-        # Areas of the sub-triangles formed with the point (P)
-        area_PAB = abs(x_point*(y1 - y2) + x1*(y2 - y_point) + x2*(y_point - y1)) / 2.0
-        area_PBC = abs(x_point*(y2 - y3) + x2*(y3 - y_point) + x3*(y_point - y2)) / 2.0
-        area_PCA = abs(x_point*(y3 - y1) + x3*(y1 - y_point) + x1*(y_point - y3)) / 2.0
+        for i in range(5):
+            x_point = self._x + (self.__side2 / 4) * i
+            y_point = self._y + (self.__side3 / 4) * i
+            points.append((x_point, y_point))
         
-        # If the sum of the areas of the sub-triangles is equal to the area of the triangle, the point is inside
-        return area_ABC == area_PAB + area_PBC + area_PCA
+        for i in range(5):
+            x_point = self._x + self.__side2
+            y_point = self._y + (self.__side3 / 4) * i
+            points.append((x_point, y_point))
+        
+        return points
+    
+    def is_inside(self, x, y):
+        def sign(p1, p2, p3):
+            return (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
+        
+        p1 = (self._x, self._y)
+        p2 = (self._x + self.__side1, self._y)
+        p3 = (self._x + self.__side2 / 2, self._y + math.sqrt(self.__side3**2 - (self.__side2 / 2)**2))
+        
+        d1 = sign((x, y), p1, p2)
+        d2 = sign((x, y), p2, p3)
+        d3 = sign((x, y), p3, p1)
+        
+        has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
+        has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
+        
+        return not (has_neg and has_pos)
         
     def paint(self, canvas, char='*'):
-        x1, y1 = self.vertices[0]
-        x2, y2 = self.vertices[1]
-        x3, y3 = self.vertices[2]
-        canvas.line(x1, y1, x2, y2)
-        canvas.line(x1, y1, x3, y3)
-        canvas.line(x2,y2, x3, y3)
+        for point in self.get_perimeter_points():
+            canvas.set_pixel(int(point[0]), int(point[1]))
+
+    def __repr__(self):
+        return "Triangle ("+repr(self.__side1)+","+repr(self.__side2)+","+repr(self.__side3)+","+repr(self._x)+","+repr(self._y)+") "
